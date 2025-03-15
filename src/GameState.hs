@@ -2,11 +2,15 @@ module GameState where
 
 import RenderState (BoardInfo (..), Point, DeltaBoard, RenderMessage(..), CellType(..))
 import qualified RenderState as Board
-import Data.Sequence ( Seq(..))
-import qualified Data.Sequence as S
+import Data.Sequence (Seq(Empty), Seq(..), empty, viewr, ViewR(..), (|>),  mapWithIndex, (!?), (<|), (|>))
+import qualified Data.Sequence as Seq (Seq(Empty))
 import System.Random ( uniformR, RandomGen(split), StdGen, Random (randomR))
 import Data.Maybe (isJust)
-
+import Foreign (new)
+import Data.Foldable (toList, foldl')
+import Data.Sequence (Seq,)
+import qualified Data.Sequence as Seq
+import Debug.Trace
 data Movement = North | South | East | West deriving (Show, Eq)
 
 data SnakeSeq = SnakeSeq {snakeHead :: Point, snakeBody :: Seq Point} deriving (Show, Eq)
@@ -29,7 +33,7 @@ opositeMovement West = East
 
 -- | Purely creates a random point within the board limits
 makeRandomPoint :: BoardInfo -> StdGen -> (Point, StdGen)
-makeRandomPoint (BoardInfo h w) = randomR ((0, 0), (h - 1, w - 1))
+makeRandomPoint (BoardInfo h w) = randomR ((1, 1), (h, w))
 
 {-
 We can't test makeRandomPoint, because different implementation may lead to different valid result.
@@ -49,17 +53,17 @@ nextHead bi gs = let p = snakeHead $ snakeSeq gs
 
 movementToDelta :: Point -> GameState -> Point
 movementToDelta (x, y) gs = case movement gs of
-        North -> (x, y + 1)
-        South -> (x, y - 1)
-        West -> (x - 1, y)
-        East -> (x + 1, y)
+        East -> (x, y + 1)
+        West -> (x, y - 1)
+        North -> (x - 1, y)
+        South -> (x + 1, y)
 
 handleDelta :: Point -> BoardInfo -> Point
 handleDelta (x, y) (BoardInfo h w)
-  | x < 0 = (w - 1, y)
-  | x >= w - 1 = (0, y)
-  | y < 0 = (x, h - 1)
-  | y >= h - 1 = (x, 0)
+  | x < 1 = (w, y)
+  | x > w = (1, y)
+  | y < 1 = (x, h)
+  | y > h = (x, 1)
   | otherwise = (x, y)
 
 movementToDeltaHandled :: Point -> BoardInfo -> GameState -> Point
@@ -87,18 +91,9 @@ newApple bi gs = let
 --        - - - -    =>    - - - -
 --        - 0 $ X          - 0 0 $
 -- We need to send the following delta: [((2,2), Apple), ((4,3), Snake), ((4,4), SnakeHead)]
--- 
-move :: BoardInfo -> GameState -> (Board.RenderMessage , GameState)
-move bi gs = let
-    ch = snakeHead $ snakeSeq gs -- current head
-    cb = snakeBody $ snakeSeq gs -- current body
-    ca = applePosition gs -- current apple
-    ss = snakeBody $ snakeSeq gs -- snake seq
 
-    na = if inSnake ca $ snakeSeq gs then [(ca, RenderState.Empty), (fst $ newApple bi gs, Apple)] else [] -- new apple
-    dr = foldr (\p acc -> acc ++ [(p, RenderState.Empty), (movementToDeltaHandled p bi gs, Snake)]) [] cb -- delta rest 
-    nh = [(nextHead bi gs, SnakeHead)] -- new head
-    nh'= if null ss then (ch, RenderState.Empty) : nh else nh
-    isGameOver = ch `elem` ss
+pointOp :: (Int -> Int -> Int) -> Point -> Point -> Point
+pointOp f p1 p2 = (f (fst p2) (fst p1), f (snd p2) (snd p2))
 
-    in if isGameOver then (GameOver, gs) else (RenderBoard (na ++ nh' ++ dr), gs)
+
+   

@@ -51,7 +51,7 @@ data RenderState   = RenderState {board :: Board, gameOver :: Bool} deriving Sho
 -- | Given The board info, this function should return a board with all Empty cells
 emptyGrid :: BoardInfo -> Board
 --emptyGrid (BoardInfo h w) = array (0, h * w - 1) [(i, ((x, y), Empty)) | x <- [0..w - 1], y <- [0..h - 1]]
-emptyGrid (BoardInfo h w) = array ((0, 0), (h - 1, w - 1)) [((y, x), Empty) | y <- [0..h - 1], x <- [0..w - 1]]
+emptyGrid (BoardInfo h w) = array ((1, 1), (h, w)) [((x, y), Empty) | y <- [1..h], x <- [1..w]]
 {- 
 This is a test for emptyGrid. It should return 
 array ((1,1),(2,2)) [((1,1),Empty),((1,2),Empty),((2,1),Empty),((2,2),Empty)]
@@ -117,7 +117,7 @@ ppCell c = case c of
 --   It should return the Board with a pretty look. If game over, return the empty board.
 render :: BoardInfo -> RenderState -> String
 render (BoardInfo h w) (RenderState b isGameOver) = if isGameOver then "Game over" else
-  unlines [unwords [ppCell (b ! (y, x)) | x <- [0..w - 1]] | y <- [0..h - 1]]
+  unlines [unwords [ppCell (b ! (y, x)) | x <- [1..w]] | y <- [1..h]]
 {-
 This is a test for render. It should return:
 "- - - - \n- 0 $ - \n- - - X \n"

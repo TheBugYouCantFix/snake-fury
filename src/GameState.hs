@@ -10,7 +10,6 @@ import Foreign (new)
 import Data.Foldable (toList, foldl')
 import Data.Sequence (Seq,)
 import qualified Data.Sequence as Seq
-import Debug.Trace
 data Movement = North | South | East | West deriving (Show, Eq)
 
 data SnakeSeq = SnakeSeq {snakeHead :: Point, snakeBody :: Seq Point} deriving (Show, Eq)
@@ -99,7 +98,7 @@ pointOp f p1 p2 = (f (fst p2) (fst p1), f (snd p2) (snd p2))
 replaceWithNext :: a -> Seq a -> Seq a
 replaceWithNext lastValue sq =
     mapWithIndex (\index _ ->
-        case sq !? (index + 1) of  -- Get the next element
+        case sq !? (index - 1) of  -- Get the next element
             Just nextValue -> nextValue  -- Replace with the next value
             Nothing -> lastValue        -- Replace the last element with the given value
     ) sq
@@ -116,32 +115,28 @@ move bi gs = let
     ch = snakeHead $ snakeSeq gs -- current head
     cb = snakeBody $ snakeSeq gs -- current body
     ca = applePosition gs -- current apple
-    mv = movement gs
-    
-    
 
     (na, stdGen) = newApple bi gs -- new apple
     appleEaten = inSnake ca $ snakeSeq gs
     newAppleDelta = if appleEaten then [(ca, RenderState.Empty), (na , Apple)] else []
 
     newTailCoord = if null cb then ch else seqLast cb ch-- tail here means the last elem of a body
-    --newTailData = if appleEaten then [(newTailCoord, Snake)] else []
+    newTailData = if appleEaten then [(newTailCoord, Snake)] else [(seqLast cb ch, RenderState.Empty)]
 
     newHead = nextHead bi gs
     newHeadData' = [(newHead, SnakeHead)]
 
-    cb' = if appleEaten then cb |> newTailCoord else cb
-    newSnakeSeq = replaceWithNext ch cb'
-    newSnakeSeqData = toList (fmap (\p -> (p, Snake)) newSnakeSeq)
-    newSnakeSeqData' = if appleEaten then newSnakeSeqData else newSnakeSeqData ++ [(seqLast cb ch, RenderState.Empty)]
+    newSnakeSeq = replaceWithNext ch cb 
+    newSnakeSeq' = if appleEaten then newSnakeSeq |> newTailCoord else newSnakeSeq
+    newSnakeSeqData = toList (fmap (\p -> (p, Snake)) newSnakeSeq')
 
     isGameOver = ch `elem` cb
 
-    newRenderBoard = RenderBoard (newAppleDelta ++ newHeadData' ++ newSnakeSeqData')
+    newRenderBoard = RenderBoard (newAppleDelta ++ newHeadData' ++ newSnakeSeqData ++ newTailData)
 
     in if isGameOver then (GameOver, gs) else (newRenderBoard, GameState{
-      snakeSeq=SnakeSeq{snakeHead=newHead, snakeBody=newSnakeSeq},
-      applePosition=if null newAppleDelta then ca else na,
-      movement=mv,
+      snakeSeq=SnakeSeq{snakeHead=newHead, snakeBody=newSnakeSeq'},
+      applePosition=if appleEaten then na else ca,
+      movement=movement gs,
       randomGen=if appleEaten then stdGen else randomGen gs
     })
